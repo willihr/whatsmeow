@@ -83,7 +83,7 @@ func (cli *Client) parseMessageSource(node *waBinary.Node, requireParticipant bo
 		} else {
 			source.Sender = ag.OptionalJIDOrEmpty("participant")
 		}
-		if source.AddressingMode == types.AddressingModeLID {
+		if source.AddressingMode == types.AddressingModeLID || (source.AddressingMode == "" && source.Sender.Server == types.HiddenUserServer) {
 			source.SenderAlt = ag.OptionalJIDOrEmpty("participant_pn")
 		} else {
 			source.SenderAlt = ag.OptionalJIDOrEmpty("participant_lid")
@@ -107,7 +107,7 @@ func (cli *Client) parseMessageSource(node *waBinary.Node, requireParticipant bo
 		} else {
 			source.Chat = from.ToNonAD()
 		}
-		if source.AddressingMode == types.AddressingModeLID {
+		if source.AddressingMode == types.AddressingModeLID || (source.AddressingMode == "" && source.Sender.Server == types.HiddenUserServer) {
 			source.RecipientAlt = ag.OptionalJIDOrEmpty("peer_recipient_pn") // existence of this field is not confirmed
 		} else {
 			source.RecipientAlt = ag.OptionalJIDOrEmpty("peer_recipient_lid")
@@ -125,7 +125,7 @@ func (cli *Client) parseMessageSource(node *waBinary.Node, requireParticipant bo
 	} else {
 		source.Chat = from.ToNonAD()
 		source.Sender = from
-		if source.AddressingMode == types.AddressingModeLID {
+		if source.AddressingMode == types.AddressingModeLID || (source.AddressingMode == "" && source.Sender.Server == types.HiddenUserServer) {
 			source.SenderAlt = ag.OptionalJIDOrEmpty("sender_pn")
 		} else {
 			source.SenderAlt = ag.OptionalJIDOrEmpty("sender_lid")
