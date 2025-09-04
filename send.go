@@ -338,6 +338,15 @@ func (cli *Client) SendMessage(ctx context.Context, to types.JID, message *waE2E
 	// Peer message retries aren't implemented yet
 	if !req.Peer {
 		cli.addRecentMessage(to, req.ID, message, nil)
+		// Also add recent message for LID if sending to PN
+		if to.Server == types.DefaultUserServer {
+			lidForPN, err := cli.Store.LIDs.GetLIDForPN(ctx, to)
+			if err != nil {
+				cli.Log.Warnf("Failed to get LID for %s: %v", to, err)
+			} else if !lidForPN.IsEmpty() {
+				cli.addRecentMessage(lidForPN, req.ID, message, nil)
+			}
+		}
 	}
 
 	if message.GetMessageContextInfo().GetMessageSecret() != nil {
