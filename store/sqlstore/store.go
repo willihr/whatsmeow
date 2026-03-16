@@ -874,9 +874,12 @@ func (s *SQLStore) GetChatSettings(ctx context.Context, chat types.JID) (setting
 
 const (
 	putMsgSecret = `
-		INSERT INTO whatsmeow_message_secrets (our_jid, chat_jid, sender_jid, message_id, key)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO whatsmeow_message_secrets (our_jid, chat_jid, sender_jid, message_id, key, timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (our_jid, chat_jid, sender_jid, message_id) DO NOTHING
+	`
+	deleteOldMsgSecretsQuery = `
+		DELETE FROM whatsmeow_message_secrets WHERE our_jid=$1 AND timestamp > 0 AND timestamp < $2
 	`
 	getMsgSecret = `
 		SELECT key, sender_jid
@@ -903,9 +906,10 @@ func (s *SQLStore) PutMessageSecrets(ctx context.Context, inserts []store.Messag
 	if len(inserts) == 0 {
 		return nil
 	}
+	now := time.Now().UnixMilli()
 	return s.db.DoTxn(ctx, nil, func(ctx context.Context) error {
 		for _, insert := range inserts {
-			_, err = s.db.Exec(ctx, putMsgSecret, s.JID, insert.Chat.ToNonAD(), insert.Sender.ToNonAD(), insert.ID, insert.Secret)
+			_, err = s.db.Exec(ctx, putMsgSecret, s.JID, insert.Chat.ToNonAD(), insert.Sender.ToNonAD(), insert.ID, insert.Secret, now)
 			if err != nil {
 				return err
 			}
@@ -915,8 +919,13 @@ func (s *SQLStore) PutMessageSecrets(ctx context.Context, inserts []store.Messag
 }
 
 func (s *SQLStore) PutMessageSecret(ctx context.Context, chat, sender types.JID, id types.MessageID, secret []byte) (err error) {
-	_, err = s.db.Exec(ctx, putMsgSecret, s.JID, chat.ToNonAD(), sender.ToNonAD(), id, secret)
+	_, err = s.db.Exec(ctx, putMsgSecret, s.JID, chat.ToNonAD(), sender.ToNonAD(), id, secret, time.Now().UnixMilli())
 	return
+}
+
+func (s *SQLStore) DeleteOldMessageSecrets(ctx context.Context, age time.Duration) error {
+	_, err := s.db.Exec(ctx, deleteOldMsgSecretsQuery, s.JID, time.Now().Add(-age).UnixMilli())
+	return err
 }
 
 func (s *SQLStore) GetMessageSecret(ctx context.Context, chat, sender types.JID, id types.MessageID) (secret []byte, realSender types.JID, err error) {

@@ -220,6 +220,10 @@ func (n *NoopStore) GetMessageSecret(ctx context.Context, chat, sender types.JID
 	return nil, types.EmptyJID, n.Error
 }
 
+func (n *NoopStore) DeleteOldMessageSecrets(ctx context.Context, age time.Duration) error {
+	return n.Error
+}
+
 func (n *NoopStore) PutPrivacyTokens(ctx context.Context, tokens ...PrivacyToken) error {
 	return n.Error
 }

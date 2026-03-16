@@ -82,6 +82,11 @@ type Client struct {
 	SynchronousAck             bool
 	EnableDecryptedEventBuffer bool
 	lastDecryptedBufferClear   time.Time
+	// MessageSecretRetention controls how long message secrets are kept before being
+	// automatically deleted. Defaults to 90 days when set to 0. Set to a negative
+	// value to disable auto-cleanup entirely.
+	MessageSecretRetention  time.Duration
+	lastMsgSecretsClear     time.Time
 
 	DisableLoginAutoReconnect bool
 

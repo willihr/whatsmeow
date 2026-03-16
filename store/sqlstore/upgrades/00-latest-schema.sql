@@ -126,11 +126,14 @@ CREATE TABLE whatsmeow_message_secrets (
 	chat_jid   TEXT,
 	sender_jid TEXT,
 	message_id TEXT,
-	key        bytea NOT NULL,
+	key        bytea  NOT NULL,
+	timestamp  BIGINT NOT NULL DEFAULT 0,
 
 	PRIMARY KEY (our_jid, chat_jid, sender_jid, message_id),
 	FOREIGN KEY (our_jid) REFERENCES whatsmeow_device(jid) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+CREATE INDEX whatsmeow_message_secrets_ts_idx ON whatsmeow_message_secrets (our_jid, timestamp);
 
 CREATE TABLE whatsmeow_privacy_tokens (
 	our_jid          TEXT,

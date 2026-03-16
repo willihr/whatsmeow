@@ -133,6 +133,10 @@ type MsgSecretStore interface {
 	PutMessageSecrets(ctx context.Context, inserts []MessageSecretInsert) error
 	PutMessageSecret(ctx context.Context, chat, sender types.JID, id types.MessageID, secret []byte) error
 	GetMessageSecret(ctx context.Context, chat, sender types.JID, id types.MessageID) ([]byte, types.JID, error)
+	// DeleteOldMessageSecrets deletes message secrets that were stored more than the given duration ago.
+	// Rows inserted before the v14 schema migration (which have timestamp=0) are never deleted.
+	// The recommended minimum retention period is 30 days; 90 days is used by default in the client.
+	DeleteOldMessageSecrets(ctx context.Context, age time.Duration) error
 }
 
 type PrivacyToken struct {

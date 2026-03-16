@@ -865,6 +865,18 @@ func (cli *Client) storeMessageSecret(ctx context.Context, info *types.MessageIn
 			cli.Log.Debugf("Stored message secret key for %s", info.ID)
 		}
 	}
+	retention := cli.MessageSecretRetention
+	if retention == 0 {
+		retention = 90 * 24 * time.Hour
+	}
+	if retention > 0 && time.Since(cli.lastMsgSecretsClear) > 12*time.Hour && ctx.Err() == nil {
+		cli.lastMsgSecretsClear = time.Now()
+		go func() {
+			if err := cli.Store.MsgSecrets.DeleteOldMessageSecrets(context.WithoutCancel(ctx), retention); err != nil {
+				cli.Log.Errorf("Failed to delete old message secrets: %v", err)
+			}
+		}()
+	}
 }
 
 func (cli *Client) storeHistoricalMessageSecrets(ctx context.Context, conversations []*waHistorySync.Conversation) {
