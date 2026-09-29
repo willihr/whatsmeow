@@ -11,6 +11,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -181,12 +182,14 @@ type incomingRetryKey struct {
 }
 
 func (cli *Client) tryHandleRetryReceipt(ctx context.Context, receipt *events.Receipt, node *waBinary.Node) {
+	var cancelled bool
 	defer func() {
 		err := recover()
 		if err != nil {
 			cli.Log.Errorf("Retry receipt handler panicked: %v\n%s", err, debug.Stack())
 		}
 	}()
+	defer cli.maybeDeferredAck(ctx, node)(&cancelled)
 	if cli.retrySema != nil {
 		err := cli.retrySema.Acquire(ctx, 1)
 		if err != nil {
@@ -197,6 +200,7 @@ func (cli *Client) tryHandleRetryReceipt(ctx context.Context, receipt *events.Re
 	err := cli.handleRetryReceipt(ctx, receipt, node)
 	if err != nil {
 		cli.Log.Errorf("Failed to handle retry receipt for %s/%s from %s: %v", receipt.Chat, receipt.MessageIDs[0], receipt.Sender, err)
+		cancelled = errors.Is(err, context.Canceled) || errors.Is(err, ErrNotConnected)
 	}
 }
 
@@ -282,9 +286,13 @@ func (cli *Client) handleRetryReceipt(ctx context.Context, receipt *events.Recei
 
 	var plaintext, frankingTag []byte
 	if msg.wa != nil {
-		plaintext, err = proto.Marshal(msg.wa)
+		if receipt.Sender.ToNonAD() == types.MuseJID {
+			plaintext, err = cli.encryptWASAMessage(ctx, types.MuseJID, messageID, msg.wa)
+		} else {
+			plaintext, err = proto.Marshal(msg.wa)
+		}
 		if err != nil {
-			return fmt.Errorf("failed to marshal message: %w", err)
+			return fmt.Errorf("failed to prepare message for retry: %w", err)
 		}
 	} else {
 		plaintext, err = proto.Marshal(msg.fb)
@@ -450,7 +458,6 @@ func (cli *Client) immediateRequestMessageFromPhone(ctx context.Context, info *t
 	} else {
 		cli.Log.Debugf("Requested message %s from phone", info.ID)
 	}
-	return
 }
 
 func (cli *Client) clearDelayedMessageRequests() {
